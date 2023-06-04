@@ -28,35 +28,50 @@ ReadFile(char *file, uint16_t *nbQuestions)
     size_t len = 0;
     ssize_t nlines;
     fd = fopen(file, "r");
-    if (fd == NULL)
+    if (fd == NULL){
+      printf("failed to open file");
         return NULL;
+    }
   
   uint16_t index = -1;
   uint8_t nbanswers=0;
   while ((nlines = getline(&Res, &len, fd) != -1)){
+    //printf("%s", Res);
     uint16_t len = GetStringlen(Res);
 
     if (Res[0] == 45) {// start incorrect answers with -
-      Questions[index].Answers[Questions[index].Amnt]++;
-      for (unsigned char i=0; Res[i+1] != 0; i++){
-	      Questions[index].Answers[nbanswers][i+1] = Res[i];// don't copy +
+      Questions[index].Answers[nbanswers] = malloc(sizeof(char)*len+1);
+      //Questions[index].Answers[Questions[index].Amnt]++;
+      Questions[index].Amnt++;
+      for (unsigned char i=1; Res[i] != 0; i++){
+	      Questions[index].Answers[nbanswers][i-1] = Res[i];// don't copy +
       } 
       nbanswers++;
+        //printf("IncAnswer: %s\n", Questions[index].Answers[nbanswers]);
+
     } else if (Res[0] == 43) {// start correct answer with +
-      Questions[index].Answers[Questions[index].Amnt]++;
-      for (unsigned char i=0; Res[i+1] != 0; i++){
-	      Questions[index].Answers[nbanswers][i+1] = Res[i];// don't copy +
+      Questions[index].Answers[nbanswers] = malloc(sizeof(char)*len+1);
+      //Questions[index].Answers[Questions[index].Amnt]++;
+      Questions[index].Amnt++;
+      for (unsigned char i=1; Res[i] != 0; i++){
+	      Questions[index].Answers[nbanswers][i-1] = Res[i];// don't copy +
 	} 
       Questions[index].CorrectAnswer = nbanswers++;
+      //printf("correctanswer: %u\n", Questions[index].CorrectAnswer);
+        //printf("Answer: %s\n", Questions[index].Answers[nbanswers]);
+
     } else if(Res[0] == 63) {// start question with ?
       index++;
       nbanswers = 0;
       Questions[index].Question = malloc(sizeof(char)*len+1);
+      if (!Questions[index].Question)
+        printf("allocation failed");
       Questions[index].Answers = (char**) malloc(sizeof(char*)*4);
-      for (unsigned char i=0; Res[i+1] != 0; i++){
-	      Questions[index].Question[i+1] = Res[i];// don't copy ?
+      for (uint8_t i=1; Res[i]; i++){
+        Questions[index].Question[i-1] = Res[i];// don't copy ?
       }
     }
+    //printf("AnswerAmount: %u", Questions[index].Amnt);
   }
   fclose(fd);
   *nbQuestions = index;
@@ -66,13 +81,13 @@ ReadFile(char *file, uint16_t *nbQuestions)
 void
 AskQuestion(MC *Question)
 {
-  uint8_t *Value;
-  printf("%s\n", Question->Question);
+  char *Value;
+  printf("%s", Question->Question);
   for (uint8_t i = 0; i < Question->Amnt; i++) {
-    printf("%d: %s\n", i, Question->Answers[i]);
+    printf("%d: %s", i, Question->Answers[i]);
   }
   scanf("%ms", &Value);
-  if (*Value != Question->CorrectAnswer)
+  if (atoi(Value) != Question->CorrectAnswer)
     printf("InCorrect\n");
   else 
     printf("Correct\n");
@@ -84,8 +99,9 @@ main(int argc, char * argv[])
 {
   uint16_t nbQuestions = 0;
   MC * Questions = ReadFile(argv[1], &nbQuestions);
-  for (uint16_t i = 0; i < nbQuestions; i++)
+  for (uint16_t i = 0; i < nbQuestions+1; i++){
     AskQuestion(&(Questions[i]));
+  }
   return 0;
   
 }
