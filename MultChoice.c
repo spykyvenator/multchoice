@@ -91,7 +91,7 @@ ReadFile(char *file, uint16_t *nbQuestions)
       printf("mallocError\n");
       return NULL;
   }
-  if (!(Questions = realloc(Questions, sizeof(MC)*(index)))){// shrink memory
+  if (!(Questions = realloc(Questions, sizeof(MC)*(index+1)))){// shrink memory
       printf("mallocError\n");
       return NULL;
   }
