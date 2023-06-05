@@ -66,7 +66,7 @@ ReadFile(char *file, uint16_t *nbQuestions)
     } else if(Res[0] == 63) {// start question with ?
       index++;
       if (index)
-          if (!(realloc(Questions[index].Question, sizeof(char*)*nbanswers))){
+          if (!(Questions[index-1].Answers = realloc(Questions[index-1].Answers, sizeof(char*)*nbanswers))){
               printf("mallocError\n");
               return NULL;
           }
@@ -86,7 +86,12 @@ ReadFile(char *file, uint16_t *nbQuestions)
     //printf("AnswerAmount: %u", Questions[index].Amnt);
   }
   fclose(fd);
-  if (!(realloc(Questions, sizeof(MC)*(index)))){// shrink memory
+
+  if (!(Questions[index].Answers = realloc(Questions[index].Answers, sizeof(char*)*nbanswers))){
+      printf("mallocError\n");
+      return NULL;
+  }
+  if (!(Questions = realloc(Questions, sizeof(MC)*(index)))){// shrink memory
       printf("mallocError\n");
       return NULL;
   }
