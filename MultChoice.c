@@ -130,7 +130,7 @@ main(int argc, char * argv[])
   for (uint16_t i = 0; i < nbQuestions+1; i++){
     nbCorrect += AskQuestion(&(Questions[i]));
   }
-  printf("\033[0mEndScore: %u/%u", nbCorrect, nbQuestions);
+  printf("\033[0mEndScore: %u/%u\n", nbCorrect, nbQuestions);
   return 0;
   
 }
