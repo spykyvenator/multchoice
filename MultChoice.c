@@ -99,7 +99,7 @@ ReadFile(char *file, uint16_t *nbQuestions)
   return Questions;
 }
 
-void
+uint8_t
 AskQuestion(MC *Question)
 {
   char *Value;
@@ -108,21 +108,29 @@ AskQuestion(MC *Question)
     printf("\033[38;5;3m%d: %s\033[0m", i, Question->Answers[i]);
   }
   scanf("%ms", &Value);
-  if (atoi(Value) != Question->CorrectAnswer)
-    printf("\033[38;5;1mInCorrect\033[0m\nCorrect: %d\n\n", Question->CorrectAnswer);
-  else 
+  if (atoi(Value) != Question->CorrectAnswer){
+    printf("\033[38;5;1mInCorrect\n\033[38;5;2mCorrect: %d\033[0m\n\n", Question->CorrectAnswer);
+    return 0;
+  } else {
     printf("\033[38;5;2mCorrect\033[0m\n\n");
-  return;
+    return 1;
+  }
 }
 
 int
 main(int argc, char * argv[])
 {
+  if (argc != 2)
+    return 1;
   uint16_t nbQuestions = 0;
   MC * Questions = ReadFile(argv[1], &nbQuestions);
+  if (!Questions)
+    return 1;
+  uint16_t nbCorrect = 0;
   for (uint16_t i = 0; i < nbQuestions+1; i++){
-    AskQuestion(&(Questions[i]));
+    nbCorrect += AskQuestion(&(Questions[i]));
   }
+  printf("\033[0mEndScore: %u/%u", nbCorrect, nbQuestions);
   return 0;
   
 }
