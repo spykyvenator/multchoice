@@ -1,2 +1,2 @@
 #!/bin/sh
-gcc ./MultChoice.c -O3 -march=tigerlake -mtune=tigerlake -pipe -o ~/.local/bin/MultChoice
+gcc ./MultChoice.c -O3 -march=native -mtune=native -pipe -o ~/.local/bin/MultChoice
