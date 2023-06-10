@@ -100,10 +100,10 @@ ReadFile(char *file, uint16_t *nbQuestions)
 }
 
 uint8_t
-AskQuestion(MC *Question)
+AskQuestion(MC *Question, uint16_t i)
 {
   char *Value;
-  printf("\033[38;5;6m%s", Question->Question);
+  printf("\033[01;35m%u: \033[38;5;6m%s\033[0m", i, Question->Question);
   for (uint8_t i = 0; i < Question->Amnt; i++) {
     printf("\033[38;5;3m%d: %s\033[0m", i, Question->Answers[i]);
   }
@@ -128,7 +128,7 @@ main(int argc, char * argv[])
     return 1;
   uint16_t nbCorrect = 0;
   for (uint16_t i = 0; i < nbQuestions+1; i++){
-    nbCorrect += AskQuestion(&(Questions[i]));
+    nbCorrect += AskQuestion(&(Questions[i]), i);
   }
   printf("\033[0mEndScore: %u/%u\n", nbCorrect, nbQuestions);
   return 0;
