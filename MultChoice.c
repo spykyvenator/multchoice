@@ -79,9 +79,11 @@ ReadFile(char *file, uint16_t *nbQuestions)
       if (!Questions[index].Question)
         printf("allocation failed");
       Questions[index].Answers = (char**) malloc(sizeof(char*)*8);// max number of options = 8 -> add check to nbQuestions to increase to inf.
-      for (uint16_t i=1; Res[i]; i++){
+      uint16_t i=1;
+      for (; Res[i]; i++){
         Questions[index].Question[i-1] = Res[i];// don't copy ?
       }
+      Questions[index].Question[i] = 0;
       //printf("Question: %s\n", Questions[index].Question);
     }
     //printf("AnswerAmount: %u", Questions[index].Amnt);
