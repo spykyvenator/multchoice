@@ -42,7 +42,7 @@ ReadFile(char *file, uint16_t *nbQuestions)
     //printf("%s", Res);
     uint16_t len = GetStringlen(Res);
 
-    if (Res[0] == 45) {// start incorrect answers with -
+    if (Res[0] == '-') {// start incorrect answers with - (45)
       Questions[index].Answers[nbanswers] = malloc(sizeof(char)*len+1);
       //Questions[index].Answers[Questions[index].Amnt]++;
       Questions[index].Amnt++;
@@ -52,7 +52,7 @@ ReadFile(char *file, uint16_t *nbQuestions)
       nbanswers++;
     //printf("IncAnswer: %s\n", Questions[index].Answers[nbanswers]);
 
-    } else if (Res[0] == 43) {// start correct answer with +
+    } else if (Res[0] == '+') {// start correct answer with + (43)
       Questions[index].Answers[nbanswers] = malloc(sizeof(char)*len+1);
       //Questions[index].Answers[Questions[index].Amnt]++;
       Questions[index].Amnt++;
@@ -63,7 +63,7 @@ ReadFile(char *file, uint16_t *nbQuestions)
       //printf("correctanswer: %u\n", Questions[index].CorrectAnswer);
         //printf("Answer: %s\n", Questions[index].Answers[nbanswers]);
 
-    } else if(Res[0] == 63) {// start question with ?
+    } else if(Res[0] == '?') {// start question with ? (63)
       index++;
       if (index)
           if (!(Questions[index-1].Answers = realloc(Questions[index-1].Answers, sizeof(char*)*nbanswers))){
@@ -71,6 +71,7 @@ ReadFile(char *file, uint16_t *nbQuestions)
               return NULL;
           }
       nbanswers = 0;
+      Questions[index].CorrectAnswer = -1;
       if ( !(Questions[index].Question = malloc(sizeof(char)*len+1))){
           printf("malloc fail\n");
           return NULL;
@@ -78,9 +79,11 @@ ReadFile(char *file, uint16_t *nbQuestions)
       if (!Questions[index].Question)
         printf("allocation failed");
       Questions[index].Answers = (char**) malloc(sizeof(char*)*8);// max number of options = 8 -> add check to nbQuestions to increase to inf.
-      for (uint16_t i=1; Res[i]; i++){
+      uint16_t i=1;
+      for (; Res[i]; i++){
         Questions[index].Question[i-1] = Res[i];// don't copy ?
       }
+      Questions[index].Question[i] = 0;
       //printf("Question: %s\n", Questions[index].Question);
     }
     //printf("AnswerAmount: %u", Questions[index].Amnt);
