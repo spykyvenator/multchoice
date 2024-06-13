@@ -18,6 +18,32 @@ GetStringlen(char* in)
   return i;
 }
 
+void 
+shuffle(MC *array, size_t n)
+{
+    if (n > 1) {
+        size_t i;
+        for (i = 0; i < n - 1; i++) {
+          size_t j = i + rand() / (RAND_MAX / (n - i) + 1);
+          MC t;
+          t.Amnt = array[j].Amnt;
+          t.CorrectAnswer = array[j].CorrectAnswer;
+          t.Question = array[j].Question;
+          t.Answers = array[j].Answers;
+
+          array[j].Amnt = array[i].Amnt;
+          array[j].CorrectAnswer = array[i].CorrectAnswer;
+          array[j].Question = array[i].Question;
+          array[j].Answers = array[i].Answers;
+
+          array[i].Amnt = t.Amnt;
+          array[i].CorrectAnswer = t.CorrectAnswer;
+          array[i].Question = t.Question;
+          array[i].Answers = t.Answers;
+        }
+    }
+}
+
 MC*
 ReadFile(char *file, uint16_t *nbQuestions)
 {
@@ -39,7 +65,6 @@ ReadFile(char *file, uint16_t *nbQuestions)
    * but removing first char would require reading it anyway -> just skip printing first char
    */
   while ((nlines = getline(&Res, &len, fd) != -1)){// 
-    //printf("%s", Res);
     uint16_t len = GetStringlen(Res);
 
     if (Res[0] == '-') {// start incorrect answers with - (45)
@@ -50,7 +75,6 @@ ReadFile(char *file, uint16_t *nbQuestions)
 	      Questions[index].Answers[nbanswers][i-1] = Res[i];// don't copy +
       } 
       nbanswers++;
-    //printf("IncAnswer: %s\n", Questions[index].Answers[nbanswers]);
 
     } else if (Res[0] == '+') {// start correct answer with + (43)
       Questions[index].Answers[nbanswers] = malloc(sizeof(char)*len+1);
@@ -60,8 +84,6 @@ ReadFile(char *file, uint16_t *nbQuestions)
 	      Questions[index].Answers[nbanswers][i-1] = Res[i];// don't copy +
 	} 
       Questions[index].CorrectAnswer = nbanswers++;
-      //printf("correctanswer: %u\n", Questions[index].CorrectAnswer);
-        //printf("Answer: %s\n", Questions[index].Answers[nbanswers]);
 
     } else if(Res[0] == '?') {// start question with ? (63)
       index++;
@@ -84,9 +106,9 @@ ReadFile(char *file, uint16_t *nbQuestions)
         Questions[index].Question[i-1] = Res[i];// don't copy ?
       }
       Questions[index].Question[i] = 0;
-      //printf("Question: %s\n", Questions[index].Question);
     }
-    //printf("AnswerAmount: %u", Questions[index].Amnt);
+    free(Res);
+    Res = NULL;
   }
   fclose(fd);
 
@@ -123,16 +145,30 @@ AskQuestion(MC *Question, uint16_t i)
 int
 main(int argc, char * argv[])
 {
-  if (argc != 2)
-    return 1;
+  uint8_t cfg = 0;
   uint16_t nbQuestions = 0;
-  MC * Questions = ReadFile(argv[1], &nbQuestions);
+  uint16_t nbCorrect = 0;
+  uint8_t i = 0;
+  for (; i < argc; i++) {
+        if (argv[i][0] == '-' && argv[i][1] == 's')
+            cfg ^= 1;
+  }
+
+  if (argc == 1)
+    return 1;
+
+  MC * Questions = ReadFile(argv[argc-1], &nbQuestions);
+
+  if (cfg && 1)
+      shuffle(Questions, nbQuestions+1);
+
   if (!Questions)
     return 1;
-  uint16_t nbCorrect = 0;
+
   for (uint16_t i = 0; i < nbQuestions+1; i++){
     nbCorrect += AskQuestion(&(Questions[i]), i);
   }
+
   printf("\033[0mEndScore: %u/%u\n", nbCorrect, nbQuestions+1);
   return 0;
   
