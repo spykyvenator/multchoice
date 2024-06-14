@@ -4,8 +4,7 @@
 
 typedef struct MC MC;
 struct MC {
-    uint8_t Amnt;
-    uint8_t CorrectAnswer;
+    uint8_t Amnt, CorrectAnswer;
     char *Question;
     char **Answers;
 };
@@ -50,7 +49,7 @@ ReadFile(char *file, uint16_t *nbQuestions)
     *nbQuestions = 100;
     MC* Questions = malloc(sizeof(MC)*(*nbQuestions));
     FILE *fd;
-    char *Res = NULL;
+    char *line = NULL;
     size_t len = 0;
     ssize_t nlines;
     fd = fopen(file, "r");
@@ -64,28 +63,28 @@ ReadFile(char *file, uint16_t *nbQuestions)
   /* we can make this faster by removing the copy process and pass a new pointer each time here, 
    * but removing first char would require reading it anyway -> just skip printing first char
    */
-  while ((nlines = getline(&Res, &len, fd) != -1)){// 
-    uint16_t len = GetStringlen(Res);
+  while ((nlines = getline(&line, &len, fd) != -1)){// 
+    uint16_t len = GetStringlen(line);
 
-    if (Res[0] == '-') {// start incorrect answers with - (45)
+    if (line[0] == '-') {// start incorrect answers with - (45)
       Questions[index].Answers[nbanswers] = malloc(sizeof(char)*len+1);
       //Questions[index].Answers[Questions[index].Amnt]++;
       Questions[index].Amnt++;
-      for (uint16_t i=1; Res[i] != 0; i++){
-	      Questions[index].Answers[nbanswers][i-1] = Res[i];// don't copy +
+      for (uint16_t i=1; line[i] != 0; i++){
+	      Questions[index].Answers[nbanswers][i-1] = line[i];// don't copy +
       } 
       nbanswers++;
 
-    } else if (Res[0] == '+') {// start correct answer with + (43)
+    } else if (line[0] == '+') {// start correct answer with + (43)
       Questions[index].Answers[nbanswers] = malloc(sizeof(char)*len+1);
       //Questions[index].Answers[Questions[index].Amnt]++;
       Questions[index].Amnt++;
-      for (uint16_t i=1; Res[i] != 0; i++){
-	      Questions[index].Answers[nbanswers][i-1] = Res[i];// don't copy +
+      for (uint16_t i=1; line[i] != 0; i++){
+	      Questions[index].Answers[nbanswers][i-1] = line[i];// don't copy +
 	} 
       Questions[index].CorrectAnswer = nbanswers++;
 
-    } else if(Res[0] == '?') {// start question with ? (63)
+    } else if(line[0] == '?') {// start question with ? (63)
       index++;
       if (index)
           if (!(Questions[index-1].Answers = realloc(Questions[index-1].Answers, sizeof(char*)*nbanswers))){
@@ -102,13 +101,13 @@ ReadFile(char *file, uint16_t *nbQuestions)
         printf("allocation failed");
       Questions[index].Answers = (char**) malloc(sizeof(char*)*8);// max number of options = 8 -> add check to nbQuestions to increase to inf.
       uint16_t i=1;
-      for (; Res[i]; i++){
-        Questions[index].Question[i-1] = Res[i];// don't copy ?
+      for (; line[i]; i++){
+        Questions[index].Question[i-1] = line[i];// don't copy ?
       }
       Questions[index].Question[i] = 0;
     }
-    free(Res);
-    Res = NULL;
+    free(line);
+    line = NULL;
   }
   fclose(fd);
 
@@ -116,10 +115,12 @@ ReadFile(char *file, uint16_t *nbQuestions)
       printf("mallocError\n");
       return NULL;
   }
+
   if (!(Questions = realloc(Questions, sizeof(MC)*(index+1)))){// shrink memory
       printf("mallocError\n");
       return NULL;
   }
+
   *nbQuestions = index;
   return Questions;
 }
