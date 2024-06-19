@@ -43,20 +43,26 @@ shuffle(MC *array, size_t n)
     }
 }
 
-MC*
-ReadFile(char *file, uint16_t *nbQuestions)
+FILE*
+ReadFile(char *file)
 {
-    *nbQuestions = 100;
-    MC* Questions = malloc(sizeof(MC)*(*nbQuestions));
     FILE *fd;
-    char *line = NULL;
-    size_t len = 0;
-    ssize_t nlines;
     fd = fopen(file, "r");
     if (fd == NULL){
       printf("failed to open file");
         return NULL;
-    }
+    } else 
+      return fd;
+}
+
+MC*
+getQuestions (FILE* fd, uint16_t *nbQuestions)
+{
+  char *line = NULL;
+  size_t len = 0;
+  ssize_t nlines;
+  *nbQuestions = 300;
+  MC* Questions = malloc(sizeof(MC)*(*nbQuestions));
   
   uint16_t index = -1;
   uint8_t nbanswers=0;
@@ -143,6 +149,39 @@ AskQuestion(MC *Question, uint16_t i)
   }
 }
 
+/*
+ * Present wrong answers from other questions
+ */
+uint8_t
+AskQuestionRand(MC *Question, uint16_t i, uint8_t nbA, uint8_t nbQ, MC *Questions)
+{
+  char *Value;
+  printf("\033[01;35m%u: \033[38;5;6m%s\033[0m", i, Question->Question);
+
+  size_t solPos = rand() / (RAND_MAX / (nbA) + 1);
+  uint8_t tmp = Question->CorrectAnswer;
+  Question->CorrectAnswer = (uint8_t) solPos;
+
+  for (uint8_t i = 0; i < nbA; i++) {
+    if (i == solPos) {
+      printf("\033[38;5;3m%d: %s\033[0m", i, Question->Answers[tmp]);
+    } else {
+      size_t randQuestion = rand() / (RAND_MAX / (nbQ) + 1);
+      size_t randAns = rand() / (RAND_MAX / (Questions[randQuestion].Amnt) + 1);
+      printf("\033[38;5;3m%d: %s\033[0m", i, Questions[randQuestion].Answers[randAns]);
+    }
+  }
+  scanf("%ms", &Value);
+  if (atoi(Value) != Question->CorrectAnswer){
+    printf("\033[38;5;1mInCorrect\n\033[38;5;2mCorrect: %d\033[0m\n\n", Question->CorrectAnswer);
+    return 0;
+  } else {
+    printf("\033[38;5;2mCorrect\033[0m\n\n");
+    return 1;
+  }
+  Questions->CorrectAnswer = tmp;
+}
+
 int
 main(int argc, char * argv[])
 {
@@ -153,12 +192,15 @@ main(int argc, char * argv[])
   for (; i < argc; i++) {
         if (argv[i][0] == '-' && argv[i][1] == 's')
             cfg ^= 1;
+        if (argv[i][0] == '-' && argv[i][1] == 'r')
+            cfg ^= 2;
   }
 
   if (argc == 1)
     return 1;
 
-  MC * Questions = ReadFile(argv[argc-1], &nbQuestions);
+  FILE *fd = ReadFile(argv[argc-1]);
+  MC *Questions = getQuestions(fd, &nbQuestions);
 
   if (cfg && 1)
       shuffle(Questions, nbQuestions+1);
@@ -166,9 +208,14 @@ main(int argc, char * argv[])
   if (!Questions)
     return 1;
 
-  for (uint16_t i = 0; i < nbQuestions+1; i++){
-    nbCorrect += AskQuestion(&(Questions[i]), i);
-  }
+  if (cfg && 2)
+    for (uint16_t i = 0; i < nbQuestions+1; i++){
+      nbCorrect += AskQuestionRand(&(Questions[i]), i, 4, nbQuestions+1, Questions);
+    }
+  else
+    for (uint16_t i = 0; i < nbQuestions+1; i++){
+      nbCorrect += AskQuestion(&(Questions[i]), i);
+    }
 
   printf("\033[0mEndScore: %u/%u\n", nbCorrect, nbQuestions+1);
   return 0;
