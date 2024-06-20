@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdint.h>
 #include <sys/time.h>
+#include <stdint.h>// same size as typedeffing here
 
 typedef struct MC MC;
 struct MC {
@@ -95,17 +95,17 @@ getQuestions (FILE* fd, uint16_t *nbQuestions)
       index++;
       if (index)
           if (!(Questions[index-1].Answers = realloc(Questions[index-1].Answers, sizeof(char*)*nbanswers))){
-              printf("mallocError\n");
+              puts("mallocError");
               return NULL;
           }
       nbanswers = 0;
       Questions[index].CorrectAnswer = -1;
       if ( !(Questions[index].Question = malloc(sizeof(char)*len+1))){
-          printf("malloc fail\n");
+          puts("malloc fail");
           return NULL;
       }
       if (!Questions[index].Question)
-        printf("allocation failed");
+        puts("allocation failed");
       Questions[index].Answers = (char**) malloc(sizeof(char*)*8);// max number of options = 8 -> add check to nbQuestions to increase to inf.
       uint16_t i=1;
       for (; line[i]; i++){
@@ -119,12 +119,12 @@ getQuestions (FILE* fd, uint16_t *nbQuestions)
   fclose(fd);
 
   if (!(Questions[index].Answers = realloc(Questions[index].Answers, sizeof(char*)*nbanswers))){
-      printf("mallocError\n");
+      puts("mallocError\n");
       return NULL;
   }
 
   if (!(Questions = realloc(Questions, sizeof(MC)*(index+1)))){// shrink memory
-      printf("mallocError\n");
+      puts("mallocError\n");
       return NULL;
   }
 
@@ -139,7 +139,7 @@ checkResponse(MC *Question, uint8_t response)
     printf("\033[38;5;1mInCorrect\n\033[38;5;2mCorrect: %d\033[0m\n\n", Question->CorrectAnswer);
     return 0;
   } else {
-    printf("\033[38;5;2mCorrect\033[0m\n\n");
+    puts("\033[38;5;2mCorrect\033[0m\n\n");
     return 1;
   }
 }
@@ -176,9 +176,8 @@ AskQuestion(MC *Question, uint16_t i, uint8_t nbA, uint8_t nbQ, MC *Questions)
     Question->CorrectAnswer = (uint8_t) rand() / (RAND_MAX / (nbA) + 1);
     printAnswersRand(Question, nbA, nbQ, Questions);
   }
-  int res;
-  while ((res = scanf("%hhd", &Value)) != 1)  {
-    fgetc(stdin);// flush
+  while (scanf("%hhd", &Value) != 1)  {
+    if (scanf("%c", &Value))// flush
     puts("enter value between 0 and 255");
   }
   return checkResponse(Question, Value);
