@@ -10,7 +10,7 @@ struct MC {
     char **Answers;
 };
 
-static uint16_t
+static inline uint16_t
 GetStringlen(char* in)
 {
   uint16_t i;
@@ -18,7 +18,7 @@ GetStringlen(char* in)
   return i;
 }
 
-void 
+static inline void 
 shuffle(MC *array, size_t n)
 {
     if (n > 1) {
@@ -44,7 +44,7 @@ shuffle(MC *array, size_t n)
     }
 }
 
-FILE*
+static FILE*
 ReadFile(char *file)
 {
     FILE *fd;
@@ -56,7 +56,7 @@ ReadFile(char *file)
       return fd;
 }
 
-MC*
+static inline MC*
 getQuestions (FILE* fd, uint16_t *nbQuestions)
 {
   char *line = NULL;
@@ -132,16 +132,10 @@ getQuestions (FILE* fd, uint16_t *nbQuestions)
   return Questions;
 }
 
-uint8_t
-AskQuestion(MC *Question, uint16_t i)
+static inline uint8_t
+checkResponse(MC *Question, uint8_t response)
 {
-  char *Value;
-  printf("\033[01;35m%u: \033[38;5;6m%s\033[0m", i, Question->Question);
-  for (uint8_t i = 0; i < Question->Amnt; i++) {
-    printf("\033[38;5;3m%d: %s\033[0m", i, Question->Answers[i]);
-  }
-  scanf("%ms", &Value);
-  if (atoi(Value) != Question->CorrectAnswer){
+  if (response != Question->CorrectAnswer){
     printf("\033[38;5;1mInCorrect\n\033[38;5;2mCorrect: %d\033[0m\n\n", Question->CorrectAnswer);
     return 0;
   } else {
@@ -150,44 +144,51 @@ AskQuestion(MC *Question, uint16_t i)
   }
 }
 
-/*
- * Present wrong answers from other questions
- */
-uint8_t
-AskQuestionRand(MC *Question, uint16_t i, uint8_t nbA, uint8_t nbQ, MC *Questions)
+static inline void
+printAnswers(MC *Question)
 {
-  char *Value;
-  printf("\033[01;35m%u: \033[38;5;6m%s\033[0m", i, Question->Question);
+  for (uint8_t i = 0; i < Question->Amnt; i++) 
+    printf("\033[38;5;3m%d: %s\033[0m", i, Question->Answers[i]);
+}
 
-  size_t solPos = rand() / (RAND_MAX / (nbA) + 1);
-  uint8_t tmp = Question->CorrectAnswer;
-  Question->CorrectAnswer = (uint8_t) solPos;
-
+static inline void
+printAnswersRand(MC *Question, uint8_t nbA, uint8_t nbQ, MC *Questions)
+{
   for (uint8_t i = 0; i < nbA; i++) {
-    if (i == solPos) {
-      printf("\033[38;5;3m%d: %s\033[0m", i, Question->Answers[tmp]);
+    if (i == Question->CorrectAnswer) {
+      printf("\033[38;5;3m%d: %s\033[0m", i, Question->Answers[Question->CorrectAnswer]);
     } else {
       size_t randQuestion = rand() / (RAND_MAX / (nbQ) + 1);
       size_t randAns = rand() / (RAND_MAX / (Questions[randQuestion].Amnt) + 1);
       printf("\033[38;5;3m%d: %s\033[0m", i, Questions[randQuestion].Answers[randAns]);
     }
   }
-  scanf("%ms", &Value);
-  if (atoi(Value) != Question->CorrectAnswer){
-    printf("\033[38;5;1mInCorrect\n\033[38;5;2mCorrect: %d\033[0m\n\n", Question->CorrectAnswer);
-    return 0;
+}
+
+static inline uint8_t
+AskQuestion(MC *Question, uint16_t i, uint8_t nbA, uint8_t nbQ, MC *Questions)
+{
+  unsigned char Value;
+  printf("\033[01;35m%u: \033[38;5;6m%s\033[0m", i, Question->Question);
+  if (!nbA) {
+    printAnswers(Question);
   } else {
-    printf("\033[38;5;2mCorrect\033[0m\n\n");
-    return 1;
+    Question->CorrectAnswer = (uint8_t) rand() / (RAND_MAX / (nbA) + 1);
+    printAnswersRand(Question, nbA, nbQ, Questions);
   }
-  Questions->CorrectAnswer = tmp;
+  int res;
+  while ((res = scanf("%hhd", &Value)) != 1)  {
+    fgetc(stdin);// flush
+    puts("enter value between 0 and 255");
+  }
+  return checkResponse(Question, Value);
 }
 
 void
 help()
 {
-    puts("-r: use answers from random other questions");
-    puts("-s: shuffle the questions before asking them");
+    puts("\033[38;5;44m-r NUM\n\t\033[0muse NUM answers from random other questions");
+    puts("\033[38;5;44m-s\n\t\033[0mshuffle the questions before asking them");
     exit(0);
 }
 
@@ -205,12 +206,12 @@ main(int argc, char * argv[])
   uint8_t cfg = 0;
   uint16_t nbQuestions = 0;
   uint16_t nbCorrect = 0;
-  uint8_t i = 0;
+  uint8_t i, nbA = 0;
   for (; i < argc; i++) {
         if (argv[i][0] == '-' && argv[i][1] == 's')
             cfg ^= 1;
         else if (argv[i][0] == '-' && argv[i][1] == 'r')
-            cfg ^= (1<<2);
+            nbA = (uint8_t) atoi(argv[++i]);
         else if (argv[i][0] == '-' && argv[i][1] == 'h')
             help();
         else if (argv[i][0] == '-')
@@ -231,17 +232,12 @@ main(int argc, char * argv[])
   if (!Questions)
     return 1;
 
-  if (cfg & (1<<2)){
+  if (nbA)
     setSeed();
-    for (uint16_t i = 0; i < nbQuestions+1; i++){
-      nbCorrect += AskQuestionRand(&(Questions[i]), i, 4, nbQuestions+1, Questions);
-    }
-  }
-  else
-    for (uint16_t i = 0; i < nbQuestions+1; i++){
-      nbCorrect += AskQuestion(&(Questions[i]), i);
-    }
 
+    for (uint16_t i = 0; i < nbQuestions+1; i++)
+      nbCorrect += AskQuestion(&(Questions[i]), i, nbA, nbQuestions+1, Questions);
+    
   printf("\033[0mEndScore: %u/%u\n", nbCorrect, nbQuestions+1);
   return 0;
   
