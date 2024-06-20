@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <sys/time.h>
 
 typedef struct MC MC;
 struct MC {
@@ -182,6 +183,22 @@ AskQuestionRand(MC *Question, uint16_t i, uint8_t nbA, uint8_t nbQ, MC *Question
   Questions->CorrectAnswer = tmp;
 }
 
+void
+help()
+{
+    puts("-r: use answers from random other questions");
+    puts("-s: shuffle the questions before asking them");
+    exit(0);
+}
+
+void
+setSeed()
+{
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  srand((unsigned int) (tv.tv_sec + tv.tv_usec));
+}
+
 int
 main(int argc, char * argv[])
 {
@@ -192,8 +209,12 @@ main(int argc, char * argv[])
   for (; i < argc; i++) {
         if (argv[i][0] == '-' && argv[i][1] == 's')
             cfg ^= 1;
-        if (argv[i][0] == '-' && argv[i][1] == 'r')
-            cfg ^= 2;
+        else if (argv[i][0] == '-' && argv[i][1] == 'r')
+            cfg ^= (1<<2);
+        else if (argv[i][0] == '-' && argv[i][1] == 'h')
+            help();
+        else if (argv[i][0] == '-')
+            exit(1);
   }
 
   if (argc == 1)
@@ -202,16 +223,20 @@ main(int argc, char * argv[])
   FILE *fd = ReadFile(argv[argc-1]);
   MC *Questions = getQuestions(fd, &nbQuestions);
 
-  if (cfg && 1)
-      shuffle(Questions, nbQuestions+1);
+  if (cfg & 1) {
+    setSeed();
+    shuffle(Questions, nbQuestions+1);
+  }
 
   if (!Questions)
     return 1;
 
-  if (cfg && 2)
+  if (cfg & (1<<2)){
+    setSeed();
     for (uint16_t i = 0; i < nbQuestions+1; i++){
       nbCorrect += AskQuestionRand(&(Questions[i]), i, 4, nbQuestions+1, Questions);
     }
+  }
   else
     for (uint16_t i = 0; i < nbQuestions+1; i++){
       nbCorrect += AskQuestion(&(Questions[i]), i);
