@@ -1,3 +1,3 @@
 #!/bin/sh
-gcc ./MultChoice.c -g -Og -march=native -mtune=native -pipe -o ~/.local/bin/MultChoice
+cc ./MultChoice.c -O3 -march=native -mtune=native -pipe -o MultChoice
 #-fdump-rtl-expand => call graph

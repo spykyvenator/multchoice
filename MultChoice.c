@@ -50,8 +50,8 @@ ReadFile(char *file)
     FILE *fd;
     fd = fopen(file, "r");
     if (fd == NULL){
-      printf("failed to open file");
-        return NULL;
+      printf("failed to open file %s, was it not the last argument?\n", file);
+      exit(1);
     } else 
       return fd;
 }
