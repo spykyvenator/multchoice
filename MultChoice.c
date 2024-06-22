@@ -73,6 +73,7 @@ getQuestions (FILE* fd, uint16_t *nbQuestions)
   while ((nlines = getline(&line, &len, fd) != -1)){// 
     uint16_t len = GetStringlen(line);
 
+    //Questions[index].Answers = (char**) malloc(sizeof(char)*10);
     if (line[0] == '-') {// start incorrect answers with - (45)
       Questions[index].Answers[nbanswers] = malloc(sizeof(char)*len+1);
       //Questions[index].Answers[Questions[index].Amnt]++;
@@ -199,13 +200,25 @@ setSeed()
   srand((unsigned int) (tv.tv_sec + tv.tv_usec));
 }
 
+void
+freeMC(MC *Questions, uint16_t nbQuestions)
+{
+  for (uint16_t i = 0; i < nbQuestions; i++){
+    for (uint8_t j = 0; j < Questions[i].Amnt; j++)
+      free(Questions[i].Answers[i]);
+    free(Questions[i].Answers);
+    free(Questions[i].Question);
+  }
+  free(Questions);
+}
+
 int
 main(int argc, char * argv[])
 {
   uint8_t cfg = 0;
   uint16_t nbQuestions = 0;
   uint16_t nbCorrect = 0;
-  uint8_t i, nbA = 0;
+  uint8_t i = 0, nbA = 0;
   for (; i < argc; i++) {
         if (argv[i][0] == '-' && argv[i][1] == 's')
             cfg ^= 1;
@@ -234,8 +247,9 @@ main(int argc, char * argv[])
   if (nbA)
     setSeed();
 
-    for (uint16_t i = 0; i < nbQuestions+1; i++)
-      nbCorrect += AskQuestion(&(Questions[i]), i, nbA, nbQuestions+1, Questions);
+  for (uint16_t i = 0; i < nbQuestions+1; i++)
+    nbCorrect += AskQuestion(&(Questions[i]), i, nbA, nbQuestions+1, Questions);
+  //freeMC(Questions, nbQuestions+1);
     
   printf("\033[0mEndScore: %u/%u\n", nbCorrect, nbQuestions+1);
   return 0;

@@ -23,3 +23,7 @@ basic utility for multiple choice learning
 ```
 Multchoice [OPTION]... [FILE]...
 ```
+
+## licence
+
+this is licenced under the GPL-3
