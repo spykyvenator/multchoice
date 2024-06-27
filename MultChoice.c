@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/time.h>
-#include <stdint.h>// same size as typedeffing here
+#include <stdint.h>
 
 typedef struct MC MC;
 struct MC {
@@ -16,6 +16,38 @@ GetStringlen(char* in)
   uint16_t i;
     for (i = 0; in[i]; i++);
   return i;
+}
+
+static void*
+mempcpy2 (void* dst, const void* in, uint64_t len)
+{
+  size_t i = 0;
+  for (; i < len; i++)
+    *((char*)dst+i) = *((char*)in+i);
+  return dst+i;
+}
+
+static void*
+append (void **in, uint16_t *crnt, uint16_t *len, size_t size) 
+{
+  if (!(*in)){
+    if (*len < 1)
+      *len = 4;
+    *crnt = 0;
+    *in =  calloc(*len, size);
+  } else if (*crnt == *len) {
+    *len *= 2;
+    void *tmp = (void*) calloc(*len, size);
+    if (!tmp)
+      return NULL;
+    mempcpy2(tmp, *in, size**crnt);
+
+    free(*in);
+    *in = tmp;
+  }
+
+  uint16_t index = (*crnt)++;
+  return *in + index*size;
 }
 
 static inline void 
@@ -44,92 +76,82 @@ shuffle(MC *array, size_t n)
     }
 }
 
-static FILE*
-ReadFile(char *file)
+static char*
+ReadFile(char *file, uint32_t *length)
 {
-    FILE *fd;
-    fd = fopen(file, "r");
-    if (fd == NULL){
-      printf("failed to open file %s, was it not the last argument?\n", file);
-      exit(1);
-    } else 
-      return fd;
+    FILE *f = fopen(file, "r");
+    char * buffer = NULL;
+    if (f) {
+        fseek (f, 0, SEEK_END);
+        *length = ftell (f);
+        fseek (f, 0, SEEK_SET);
+        buffer = malloc (*length);
+        if (!buffer || !fread (buffer, 1, *length, f)) return NULL;
+        fclose (f);
+        }
+    return buffer;
 }
 
-static inline MC*
-getQuestions (FILE* fd, uint16_t *nbQuestions)
+static void*
+emalloc(size_t size)
 {
-  char *line = NULL;
-  size_t len = 0;
-  ssize_t nlines;
-  *nbQuestions = 300;
-  MC* Questions = malloc(sizeof(MC)*(*nbQuestions));
-  
+  void *res = malloc(size);
+  if (!res) {
+    puts("malloc fail");
+    exit(1);
+  }
+  return res;
+}
+
+
+static inline MC*
+getQuestions (char *fc, const size_t length, uint16_t *nbQuestions)
+{
+  *nbQuestions = 50;
+  MC* Questions = emalloc(sizeof(MC)*(*nbQuestions));
+  //MC* Questions = NULL;
   uint16_t index = -1;
-  uint8_t nbanswers=0;
-  /* we can make this faster by removing the copy process and pass a new pointer each time here, 
-   * but removing first char would require reading it anyway -> just skip printing first char
-   */
-  while ((nlines = getline(&line, &len, fd) != -1)){// 
-    uint16_t len = GetStringlen(line);
+  uint16_t nbanswers;
+  char ** ans; uint8_t linestart = 1;
 
-    //Questions[index].Answers = (char**) malloc(sizeof(char)*10);
-    if (line[0] == '-') {// start incorrect answers with - (45)
-      Questions[index].Answers[nbanswers] = malloc(sizeof(char)*len+1);
-      //Questions[index].Answers[Questions[index].Amnt]++;
-      Questions[index].Amnt++;
-      for (uint16_t i=1; line[i] != 0; i++){
-	      Questions[index].Answers[nbanswers][i-1] = line[i];// don't copy +
-      } 
-      nbanswers++;
-
-    } else if (line[0] == '+') {// start correct answer with + (43)
-      Questions[index].Answers[nbanswers] = malloc(sizeof(char)*len+1);
-      //Questions[index].Answers[Questions[index].Amnt]++;
-      Questions[index].Amnt++;
-      for (uint16_t i=1; line[i] != 0; i++){
-	      Questions[index].Answers[nbanswers][i-1] = line[i];// don't copy +
-	} 
-      Questions[index].CorrectAnswer = nbanswers++;
-
-    } else if(line[0] == '?') {// start question with ? (63)
-      index++;
-      if (index)
-          if (!(Questions[index-1].Answers = realloc(Questions[index-1].Answers, sizeof(char*)*nbanswers))){
-              puts("mallocError");
-              return NULL;
+  for (size_t i = 0; i < length; i++) {
+    switch (fc[i]) {
+        case '?':
+          if (!linestart) {
+            break;
           }
-      nbanswers = 0;
-      Questions[index].CorrectAnswer = -1;
-      if ( !(Questions[index].Question = malloc(sizeof(char)*len+1))){
-          puts("malloc fail");
-          return NULL;
-      }
-      if (!Questions[index].Question)
-        puts("allocation failed");
-      Questions[index].Answers = (char**) malloc(sizeof(char*)*8);// max number of options = 8 -> add check to nbQuestions to increase to inf.
-      uint16_t i=1;
-      for (; line[i]; i++){
-        Questions[index].Question[i-1] = line[i];// don't copy ?
-      }
-      Questions[index].Question[i] = 0;
+          linestart = 0;
+          //append((void**) &Questions, &index, nbQuestions, sizeof(MC));
+          index++;
+          nbanswers = 0;
+          Questions[index].CorrectAnswer = -1;
+          Questions[index].Question = &fc[i+1];
+          Questions[index].Amnt = 0;
+          Questions[index].Answers = (char**) emalloc(sizeof(char**)*8);
+          fc[i] = '\0';
+          break;
+        case '+':
+        case '-':
+          if (!linestart) {
+            break;
+          }
+          linestart = 0;
+          if (fc[i] == '+')
+            Questions[index].CorrectAnswer = Questions[index].Amnt;
+          //ans = (char**) append((void**) &(Question->Answers), (uint16_t*) &(Question->Amnt), &nbanswers, sizeof(char**));
+          //*ans = &(fc[i+1]);
+          Questions[index].Answers[Questions[index].Amnt++] = &(fc[i+1]);
+          fc[i] = '\0';
+          break;
+        case '\n':
+          if (i == length-1 || fc[i+1] == '?' || fc[i+1] == '+' || fc[i+1] == '-')
+            linestart = 1;
+          fc[i] = '\0';
+          break;
     }
-    free(line);
-    line = NULL;
   }
-  fclose(fd);
-
-  if (!(Questions[index].Answers = realloc(Questions[index].Answers, sizeof(char*)*nbanswers))){
-      puts("mallocError\n");
-      return NULL;
-  }
-
-  if (!(Questions = realloc(Questions, sizeof(MC)*(index+1)))){// shrink memory
-      puts("mallocError\n");
-      return NULL;
-  }
-
-  *nbQuestions = index;
+  Questions = (MC*) realloc(Questions, sizeof(MC)*(index+1));
+  *nbQuestions = index - 1;
   return Questions;
 }
 
@@ -149,7 +171,7 @@ static inline void
 printAnswers(MC *Question)
 {
   for (uint8_t i = 0; i < Question->Amnt; i++) 
-    printf("\033[38;5;3m%d: %s\033[0m", i, Question->Answers[i]);
+    printf("\033[38;5;3m%d: %s\033[0m\n", i, Question->Answers[i]);
 }
 
 static inline void
@@ -170,16 +192,16 @@ static inline uint8_t
 AskQuestion(MC *Question, uint16_t i, uint8_t nbA, uint8_t nbQ, MC *Questions)
 {
   unsigned char Value;
-  printf("\033[01;35m%u: \033[38;5;6m%s\033[0m", i, Question->Question);
+  printf("\033[01;35m%u: \033[38;5;6m%s\033[0m\n", i, Question->Question);
   if (!nbA) {
     printAnswers(Question);
   } else {
-    Question->CorrectAnswer = (uint8_t) rand() / (RAND_MAX / (nbA) + 1);
+    Question->CorrectAnswer = (uint8_t) rand() / (RAND_MAX / (nbA)-1);
     printAnswersRand(Question, nbA, nbQ, Questions);
   }
   while (scanf("%hhd", &Value) != 1)  {
     if (scanf("%c", &Value))// flush
-    puts("enter value between 0 and 255");
+      puts("enter value between 0 and 255");
   }
   return checkResponse(Question, Value);
 }
@@ -204,10 +226,7 @@ void
 freeMC(MC *Questions, uint16_t nbQuestions)
 {
   for (uint16_t i = 0; i < nbQuestions; i++){
-    for (uint8_t j = 0; j < Questions[i].Amnt; j++)
-      free(Questions[i].Answers[i]);
     free(Questions[i].Answers);
-    free(Questions[i].Question);
   }
   free(Questions);
 }
@@ -219,6 +238,8 @@ main(int argc, char * argv[])
   uint16_t nbQuestions = 0;
   uint16_t nbCorrect = 0;
   uint8_t i = 0, nbA = 0;
+  uint32_t len;
+
   for (; i < argc; i++) {
         if (argv[i][0] == '-' && argv[i][1] == 's')
             cfg ^= 1;
@@ -233,8 +254,8 @@ main(int argc, char * argv[])
   if (argc == 1)
     return 1;
 
-  FILE *fd = ReadFile(argv[argc-1]);
-  MC *Questions = getQuestions(fd, &nbQuestions);
+  char *fc = ReadFile(argv[argc-1], &len);
+  MC *Questions = getQuestions(fc, len, &nbQuestions);
 
   if (cfg & 1) {
     setSeed();
@@ -249,9 +270,9 @@ main(int argc, char * argv[])
 
   for (uint16_t i = 0; i < nbQuestions+1; i++)
     nbCorrect += AskQuestion(&(Questions[i]), i, nbA, nbQuestions+1, Questions);
-  //freeMC(Questions, nbQuestions+1);
+  freeMC(Questions, nbQuestions+1);
+  free(fc);
     
   printf("\033[0mEndScore: %u/%u\n", nbCorrect, nbQuestions+1);
   return 0;
-  
 }
