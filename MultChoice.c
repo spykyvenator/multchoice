@@ -85,9 +85,9 @@ getNbAns(char *fc, size_t i, const size_t length) {
   uint8_t amnt = 0;
   i++;
   for (; i < length; i++) {
-    if (fc[i] == '\n' && (fc[i+1] == '+' || fc[i+1] == '-'))
+    if (fc[i-1] == '\n' && (fc[i] == '+' || fc[i] == '-'))
       amnt++;
-    if (fc[i] == '\n' && fc[i+1] == '?')
+    if (fc[i-1] == '\n' && fc[i] == '?')
       return amnt;
   }
   return amnt;
@@ -98,8 +98,8 @@ getQuestions (char *fc, const size_t length, uint16_t *nbQuestions)
 {
   if (fc[0] == '?')
     *nbQuestions = 1;
-  for (size_t i = 0; i < length-1; i++) {// count amount of questions
-    if (fc[i] == '\n' && fc[i+1] == '?')
+  for (size_t i = 1; i < length-1; i++) {// count amount of questions
+    if (fc[i-1] == '\n' && fc[i] == '?')
       (*nbQuestions)++;
   }
 #ifdef DEBUG
@@ -146,7 +146,7 @@ getQuestions (char *fc, const size_t length, uint16_t *nbQuestions)
           fc[i] = '\0';
           break;
         case '\n':
-          if (/* i == length-1 ||*/ fc[i+1] == '?' || fc[i+1] == '+' || fc[i+1] == '-')
+          if ( i < length-1 && (fc[i+1] == '?' || fc[i+1] == '+' || fc[i+1] == '-'))
             linestart = 1;
           fc[i] = '\0';
           break;
