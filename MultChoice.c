@@ -27,29 +27,6 @@ mempcpy2 (void* dst, const void* in, uint64_t len)
   return dst+i;
 }
 
-static void*
-append (void **in, uint16_t *crnt, uint16_t *len, size_t size) 
-{
-  if (!(*in)){
-    if (*len < 1)
-      *len = 4;
-    *crnt = 0;
-    *in =  calloc(*len, size);
-  } else if (*crnt == *len) {
-    *len *= 2;
-    void *tmp = (void*) calloc(*len, size);
-    if (!tmp)
-      return NULL;
-    mempcpy2(tmp, *in, size**crnt);
-
-    free(*in);
-    *in = tmp;
-  }
-
-  uint16_t index = (*crnt)++;
-  return *in + index*size;
-}
-
 static inline void 
 shuffle(MC *array, size_t n)
 {
@@ -103,11 +80,31 @@ emalloc(size_t size)
   return res;
 }
 
+static inline uint8_t
+getNbAns(char *fc, size_t i, const size_t length) {
+  uint8_t amnt = 0;
+  i++;
+  for (; i < length; i++) {
+    if (fc[i] == '\n' && (fc[i+1] == '+' || fc[i+1] == '-'))
+      amnt++;
+    if (fc[i] == '\n' && fc[i+1] == '?')
+      return amnt;
+  }
+  return amnt;
+}
 
 static inline MC*
 getQuestions (char *fc, const size_t length, uint16_t *nbQuestions)
 {
-  *nbQuestions = 50;
+  if (fc[0] == '?')
+    *nbQuestions = 1;
+  for (size_t i = 0; i < length-1; i++) {// count amount of questions
+    if (fc[i] == '\n' && fc[i+1] == '?')
+      (*nbQuestions)++;
+  }
+#ifdef DEBUG
+  printf("nQuestions: %d\n", *nbQuestions);
+#endif
   MC* Questions = emalloc(sizeof(MC)*(*nbQuestions));
   //MC* Questions = NULL;
   uint16_t index = -1;
@@ -120,14 +117,21 @@ getQuestions (char *fc, const size_t length, uint16_t *nbQuestions)
           if (!linestart) {
             break;
           }
-          linestart = 0;
-          //append((void**) &Questions, &index, nbQuestions, sizeof(MC));
           index++;
+          linestart = 0;
+#ifdef DEBUG
+          if (index >= *nbQuestions)
+            printf("index out of bounds: %d\n", index);
+#endif
+          //append((void**) &Questions, &index, nbQuestions, sizeof(MC));
           nbanswers = 0;
           Questions[index].CorrectAnswer = -1;
           Questions[index].Question = &fc[i+1];
-          Questions[index].Amnt = 0;
-          Questions[index].Answers = (char**) emalloc(sizeof(char**)*8);
+          Questions[index].Amnt = getNbAns(fc, i, length);
+#ifdef DEBUG
+          printf("%d\n", Questions[index].Amnt);
+#endif
+          Questions[index].Answers = (char**) emalloc(sizeof(char**)*Questions[index].Amnt);
           fc[i] = '\0';
           break;
         case '+':
@@ -137,21 +141,17 @@ getQuestions (char *fc, const size_t length, uint16_t *nbQuestions)
           }
           linestart = 0;
           if (fc[i] == '+')
-            Questions[index].CorrectAnswer = Questions[index].Amnt;
-          //ans = (char**) append((void**) &(Question->Answers), (uint16_t*) &(Question->Amnt), &nbanswers, sizeof(char**));
-          //*ans = &(fc[i+1]);
-          Questions[index].Answers[Questions[index].Amnt++] = &(fc[i+1]);
+            Questions[index].CorrectAnswer = nbanswers;
+          Questions[index].Answers[nbanswers++] = &(fc[i+1]);
           fc[i] = '\0';
           break;
         case '\n':
-          if (i == length-1 || fc[i+1] == '?' || fc[i+1] == '+' || fc[i+1] == '-')
+          if (/* i == length-1 ||*/ fc[i+1] == '?' || fc[i+1] == '+' || fc[i+1] == '-')
             linestart = 1;
           fc[i] = '\0';
           break;
     }
   }
-  Questions = (MC*) realloc(Questions, sizeof(MC)*(index+1));
-  *nbQuestions = index - 1;
   return Questions;
 }
 
@@ -179,11 +179,11 @@ printAnswersRand(MC *Question, uint8_t nbA, uint8_t nbQ, MC *Questions)
 {
   for (uint8_t i = 0; i < nbA; i++) {
     if (i == Question->CorrectAnswer) {
-      printf("\033[38;5;3m%d: %s\033[0m", i, Question->Answers[Question->CorrectAnswer]);
+      printf("\033[38;5;3m%d: %s\033[0m\n", i, Question->Answers[Question->CorrectAnswer]);
     } else {
       size_t randQuestion = rand() / (RAND_MAX / (nbQ) + 1);
       size_t randAns = rand() / (RAND_MAX / (Questions[randQuestion].Amnt) + 1);
-      printf("\033[38;5;3m%d: %s\033[0m", i, Questions[randQuestion].Answers[randAns]);
+      printf("\033[38;5;3m%d: %s\033[0m\n", i, Questions[randQuestion].Answers[randAns]);
     }
   }
 }
@@ -259,7 +259,7 @@ main(int argc, char * argv[])
 
   if (cfg & 1) {
     setSeed();
-    shuffle(Questions, nbQuestions+1);
+    shuffle(Questions, nbQuestions);
   }
 
   if (!Questions)
@@ -268,11 +268,11 @@ main(int argc, char * argv[])
   if (nbA)
     setSeed();
 
-  for (uint16_t i = 0; i < nbQuestions+1; i++)
-    nbCorrect += AskQuestion(&(Questions[i]), i, nbA, nbQuestions+1, Questions);
-  freeMC(Questions, nbQuestions+1);
+  for (uint16_t i = 0; i < nbQuestions; i++)
+    nbCorrect += AskQuestion(&(Questions[i]), i, nbA, nbQuestions, Questions);
+  freeMC(Questions, nbQuestions);
   free(fc);
     
-  printf("\033[0mEndScore: %u/%u\n", nbCorrect, nbQuestions+1);
+  printf("\033[0mEndScore: %u/%u\n", nbCorrect, nbQuestions);
   return 0;
 }
