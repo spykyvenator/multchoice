@@ -196,7 +196,7 @@ AskQuestion(MC *Question, uint16_t i, uint8_t nbA, uint8_t nbQ, MC *Questions)
   if (!nbA) {
     printAnswers(Question);
   } else {
-    Question->CorrectAnswer = (uint8_t) rand() / (RAND_MAX / (nbA)-1);
+    Question->CorrectAnswer = (uint8_t) (rand() / (RAND_MAX / (nbA)-1));
     printAnswersRand(Question, nbA, nbQ, Questions);
   }
   while (scanf("%hhd", &Value) != 1)  {
